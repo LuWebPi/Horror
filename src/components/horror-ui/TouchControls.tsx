@@ -162,18 +162,11 @@ export function TouchControls() {
             <span className="text-[10px] mt-0.5">RUN</span>
           </button>
 
-          {/* Flashlight */}
-          <button
-            className={`w-20 h-20 rounded-full border-2 backdrop-blur flex flex-col items-center justify-center ${
-              flashlightOn
-                ? 'bg-amber-400/30 border-amber-300/60 text-amber-100'
-                : 'bg-white/10 border-white/20 text-white/60'
-            }`}
-            onPointerDown={(e) => { e.preventDefault(); touchFlashlight(); toggleFlashlight() }}
-          >
+          {/* Flashlight indicator (always on — just shows status) */}
+          <div className="w-20 h-20 rounded-full border-2 backdrop-blur flex flex-col items-center justify-center bg-amber-400/20 border-amber-300/40 text-amber-100">
             <Flashlight className="w-7 h-7" />
-            <span className="text-[10px] mt-0.5">LIGHT</span>
-          </button>
+            <span className="text-[10px] mt-0.5">ON</span>
+          </div>
         </div>
 
         {/* Interact / Hide */}

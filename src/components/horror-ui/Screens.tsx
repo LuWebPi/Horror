@@ -66,7 +66,7 @@ export function MainMenu() {
         </h1>
         <p className="text-rose-300/70 tracking-[0.4em] text-xs mb-1">THE LAST WARD</p>
         <p className="text-white/40 text-sm mb-4 italic">
-          She hears everything. You have 5 nights to escape.
+          Trapped in a house. She hunts by night. Survive 5 days and escape.
         </p>
         <div className="mb-6 px-4 py-2 rounded border border-rose-900/40 bg-rose-950/20 flex items-center justify-center gap-2 text-rose-300/70 text-xs">
           <AlertTriangle className="w-4 h-4" />
@@ -98,14 +98,14 @@ export function MainMenu() {
             <>
               <b className="text-white/60">WASD</b> move · <b className="text-white/60">Mouse</b> look ·{' '}
               <b className="text-white/60">Shift</b> run · <b className="text-white/60">C/Ctrl</b> crouch ·{' '}
-              <b className="text-white/60">F</b> flashlight · <b className="text-white/60">E</b> hide / interact
-              <div className="mt-1 text-white/30">Click to lock mouse. ESC to release. Crouch to stay silent.</div>
+              <b className="text-white/60">E</b> hide / use stairs
+              <div className="mt-1 text-white/30">Click to lock mouse. ESC to release. Flashlight is always on. Day = safe, Night = she hunts.</div>
             </>
           ) : (
             <>
               <b className="text-white/60">Left stick</b> move · <b className="text-white/60">Right drag</b> look ·{' '}
-              <b className="text-white/60">CROUCH/RUN/LIGHT/HIDE</b> buttons
-              <div className="mt-1 text-white/30">Hide in wardrobes. She hears running & creaky floors.</div>
+              <b className="text-white/60">CROUCH/RUN/HIDE</b> buttons
+              <div className="mt-1 text-white/30">Hide in wardrobes. Walk onto stairs to change floors. She hears running & creaky floors.</div>
             </>
           )}
         </div>

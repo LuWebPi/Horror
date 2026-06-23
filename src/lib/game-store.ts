@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import type { TimeOfDay } from './entities'
 
 export type GamePhase = 'menu' | 'loading' | 'playing' | 'daytransition' | 'gameover' | 'victory'
 export type ControlMode = 'keyboard' | 'touch'
@@ -6,42 +7,38 @@ export type JumpScareType = 'monster1' | 'monster2' | null
 export type AIState = 'patrol' | 'investigate' | 'chase' | 'search' | 'stunned'
 
 interface GameState {
-  // Phase & flow
   phase: GamePhase
   controlMode: ControlMode
   assetsReady: boolean
 
-  // Day system (Granny-style: 5 days, caught -> next day)
   day: number
   maxDays: number
 
-  // Player stats
-  sanity: number       // 0-100, low = hallucinations
-  battery: number      // 0-100, flashlight power
-  flashlightOn: boolean
+  // Time of day cycle
+  timeOfDay: TimeOfDay     // 'day' or 'night'
+  dayProgress: number      // 0..1 within current day/night phase
+
+  sanity: number
+  battery: number
+  flashlightOn: boolean    // always true now — can't be turned off
   keysCollected: number
   totalKeys: number
   exitUnlocked: boolean
 
-  // Stealth (Granny-style)
-  noiseLevel: number       // 0=silent, 1=walk, 2=run, 3=creaky/impact (current frame)
-  hidden: boolean          // hiding in wardrobe
-  hiddenWardrobe: number   // index of wardrobe the player is inside (-1 if none)
+  noiseLevel: number
+  hidden: boolean
+  hiddenWardrobe: number
   crouching: boolean
 
-  // Monster
   aiState: AIState
-  monsterProximity: number  // 1=far/safe, 0=right next to you
+  monsterProximity: number
   tension: number
 
-  // Jump scare
   jumpScare: JumpScareType
 
-  // Settings
-  masterVolume: number   // 0-1
-  sensitivity: number    // 0.5-2
+  masterVolume: number
+  sensitivity: number
 
-  // Messages (transient HUD text)
   message: string
   messageUntil: number
 
@@ -53,13 +50,17 @@ interface GameState {
   resetGame: () => void
 
   setDay: (d: number) => void
-  advanceDay: () => void  // day++ and return new day; caller checks > maxDays
+  advanceDay: () => void
+
+  setTimeOfDay: (t: TimeOfDay) => void
+  setDayProgress: (p: number) => void
 
   setSanity: (v: number) => void
   drainSanity: (amt: number) => void
   restoreSanity: (amt: number) => void
   setBattery: (v: number) => void
   drainBattery: (amt: number) => void
+  // flashlight is always on now; keep setters as no-ops for compatibility
   toggleFlashlight: () => void
   setFlashlight: (v: boolean) => void
 
@@ -86,9 +87,11 @@ interface GameState {
 const INITIAL = {
   day: 1,
   maxDays: 5,
+  timeOfDay: 'day' as TimeOfDay,
+  dayProgress: 0,
   sanity: 100,
   battery: 100,
-  flashlightOn: true,
+  flashlightOn: true,   // always on
   keysCollected: 0,
   totalKeys: 3,
   exitUnlocked: false,
@@ -126,13 +129,17 @@ export const useGameStore = create<GameState>((set, get) => ({
     return next
   },
 
+  setTimeOfDay: (t) => set({ timeOfDay: t }),
+  setDayProgress: (p) => set({ dayProgress: Math.max(0, Math.min(1, p)) }),
+
   setSanity: (v) => set({ sanity: Math.max(0, Math.min(100, v)) }),
   drainSanity: (amt) => set((s) => ({ sanity: Math.max(0, s.sanity - amt) })),
   restoreSanity: (amt) => set((s) => ({ sanity: Math.min(100, s.sanity + amt) })),
   setBattery: (v) => set({ battery: Math.max(0, Math.min(100, v)) }),
   drainBattery: (amt) => set((s) => ({ battery: Math.max(0, s.battery - amt) })),
-  toggleFlashlight: () => set((s) => ({ flashlightOn: !s.flashlightOn })),
-  setFlashlight: (v) => set({ flashlightOn: v }),
+  // Flashlight is always on — these are no-ops now
+  toggleFlashlight: () => set({ flashlightOn: true }),
+  setFlashlight: (v) => set({ flashlightOn: true }),
 
   setNoiseLevel: (v) => set({ noiseLevel: Math.max(0, Math.min(3, v)) }),
   setHidden: (v, wardrobe = -1) => set({ hidden: v, hiddenWardrobe: v ? wardrobe : -1 }),

@@ -1,52 +1,56 @@
 // Shared mutable entity positions, read/written by 3D components each frame.
-// Avoids prop drilling and re-renders for tight game-loop coordination.
 
 export type MonsterState = 'patrol' | 'investigate' | 'chase' | 'search' | 'stunned'
+export type TimeOfDay = 'day' | 'night'
 
 export const entities = {
   player: {
     x: 0,
+    y: 0,
     z: 0,
-    yaw: 0,    // facing direction (radians)
-    fx: 0,     // forward vector X (normalized, XZ plane)
-    fz: -1,    // forward vector Z (normalized, XZ plane)
+    floor: 0,
+    yaw: 0,
+    fx: 0,
+    fz: -1,
     moving: false,
     sprinting: false,
     hidden: false,
-    noiseLevel: 0,  // 0 silent, 1 walk, 2 run, 3 creaky/impact
+    noiseLevel: 0,
   },
   monster: {
     x: 0,
+    y: 0,
     z: 0,
-    active: false,    // spawned
+    floor: 0,
+    active: false,
     distanceToPlayer: 999,
     state: 'patrol' as MonsterState,
-    // patrol target waypoint index
     waypoint: 0,
-    // investigate/search target position
     targetX: 0,
+    targetY: 0,
     targetZ: 0,
-    // last seen player position (for searching)
     lastSeenX: 0,
+    lastSeenY: 0,
     lastSeenZ: 0,
-    // timers (seconds)
     stateTimer: 0,
     stunTimer: 0,
-    // can currently see the player
     canSeePlayer: false,
-    // facing yaw (for body rotation)
     yaw: 0,
+  },
+  time: {
+    phase: 'day' as TimeOfDay,
+    // 0..1 progress through the current phase
+    progress: 0,
   },
 }
 
-// Flags set by Player, consumed by Monster/Player for jump scares & day transitions
+// Flags set by Player, consumed by Monster/Player
 export const scare = {
-  caught: false,             // monster reached the player -> trigger jump scare
+  caught: false,
   scriptedScare: null as 'monster1' | 'monster2' | null,
-  // noise event: a one-shot loud sound at a position (e.g. creaky floor, bump)
-  noiseEvent: null as { x: number; z: number; level: number; t: number } | null,
+  noiseEvent: null as { x: number; y: number; z: number; level: number; t: number } | null,
 }
 
-export function emitNoise(x: number, z: number, level: number) {
-  scare.noiseEvent = { x, z, level, t: performance.now() / 1000 }
+export function emitNoise(x: number, y: number, z: number, level: number) {
+  scare.noiseEvent = { x, y, z, level, t: performance.now() / 1000 }
 }

@@ -25,6 +25,8 @@ export function HUD() {
   const noiseLevel = useGameStore((s) => s.noiseLevel)
   const hidden = useGameStore((s) => s.hidden)
   const aiState = useGameStore((s) => s.aiState)
+  const timeOfDay = useGameStore((s) => s.timeOfDay)
+  const dayProgress = useGameStore((s) => s.dayProgress)
   useTick(150)
 
   const showMsg = Date.now() < messageUntil
@@ -55,18 +57,21 @@ export function HUD() {
       </div>
 
       {/* Top-left stats */}
-      <div className="absolute top-3 left-3 flex flex-col gap-2 w-44">
+      <div className="absolute top-3 left-3 flex flex-col gap-2 w-48">
         <div className="flex items-center gap-1.5 bg-black/50 backdrop-blur-sm px-3 py-1.5 rounded-md border border-rose-900/40">
           <span className="text-[10px] tracking-widest text-rose-300/80">DAY</span>
           <span className="text-sm font-bold text-rose-200">{day}</span>
           <span className="text-[10px] text-white/40">/ {maxDays}</span>
-          <div className="ml-auto flex gap-0.5">
-            {Array.from({ length: maxDays }).map((_, i) => (
-              <span
-                key={i}
-                className={`w-1.5 h-1.5 rounded-full ${i < day ? 'bg-rose-500' : 'bg-white/15'}`}
-              />
-            ))}
+          {/* day/night icon */}
+          <span className={`ml-1 text-xs ${timeOfDay === 'day' ? 'text-amber-300' : 'text-indigo-300'}`}>
+            {timeOfDay === 'day' ? '☀' : '☾'}
+          </span>
+          {/* progress bar for current phase */}
+          <div className="ml-auto w-10 h-1.5 bg-black/50 rounded-full overflow-hidden">
+            <div
+              className={`h-full ${timeOfDay === 'day' ? 'bg-amber-400' : 'bg-indigo-400'}`}
+              style={{ width: `${Math.round(dayProgress * 100)}%` }}
+            />
           </div>
         </div>
         <StatBar icon={<Brain className="w-4 h-4" />} label="SANITY" value={sanity} color="from-rose-900 to-rose-500" pulse={lowSanity} />

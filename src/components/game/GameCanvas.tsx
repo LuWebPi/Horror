@@ -24,10 +24,10 @@ import { useGameStore } from '@/lib/game-store'
 function SceneSetup() {
   const { scene, gl } = useThree()
   useEffect(() => {
-    scene.background = new THREE.Color('#050507')
-    scene.fog = new THREE.FogExp2('#050507', 0.055)
+    scene.background = new THREE.Color('#1a1a22')
+    scene.fog = new THREE.FogExp2('#1a1a22', 0.035)
     gl.toneMapping = THREE.ACESFilmicToneMapping
-    gl.toneMappingExposure = 1.1
+    gl.toneMappingExposure = 1.3
   }, [scene, gl])
   return null
 }

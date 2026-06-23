@@ -4,9 +4,9 @@ import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useTexture } from '@react-three/drei'
-import { EXIT_CELL, cellToWorld, CELL_SIZE } from '@/lib/maze'
-import { asset } from '@/lib/asset'
+import { EXIT_CELL, cellToWorld, CELL_SIZE, FLOOR_HEIGHT } from '@/lib/maze'
 import { useGameStore } from '@/lib/game-store'
+import { asset } from '@/lib/asset'
 
 export function Door() {
   const doorTex = useTexture(asset('/textures/door.png'))
@@ -21,14 +21,14 @@ export function Door() {
   const openAmount = useRef(0)
   const lightRef = useRef<THREE.PointLight>(null)
 
-  const [x, , z] = cellToWorld(EXIT_CELL[0], EXIT_CELL[1])
+  // Exit is at the left edge of the foyer (col 0, row 6) on ground floor
+  const [x, y, z] = cellToWorld(EXIT_CELL[0], EXIT_CELL[1], 0)
 
   useFrame((_, delta) => {
     const target = exitUnlocked ? 1 : 0
     openAmount.current = THREE.MathUtils.lerp(openAmount.current, target, delta * 2)
     if (groupRef.current) {
-      // swing open like a door
-      groupRef.current.rotation.y = openAmount.current * -1.6
+      groupRef.current.rotation.y = openAmount.current * 1.6
     }
     if (lightRef.current) {
       lightRef.current.color.set(exitUnlocked ? '#33ff66' : '#ff2222')
@@ -37,7 +37,7 @@ export function Door() {
   })
 
   return (
-    <group position={[x, 0, z]}>
+    <group position={[x, y, z]}>
       {/* Door frame */}
       <mesh position={[0, 2, 0]}>
         <boxGeometry args={[CELL_SIZE, 4, 0.3]} />
@@ -53,22 +53,11 @@ export function Door() {
         </group>
       </group>
       {/* Status light above door */}
-      <pointLight
-        ref={lightRef}
-        position={[0, 3.4, 0.5]}
-        color="#ff2222"
-        intensity={2}
-        distance={6}
-        decay={2}
-      />
+      <pointLight ref={lightRef} position={[0, 3.4, 0.5]} color="#ff2222" intensity={2} distance={6} decay={2} />
       {/* EXIT sign */}
       <mesh position={[0, 3.6, 0.2]}>
         <planeGeometry args={[1.2, 0.3]} />
-        <meshStandardMaterial
-          color="#220000"
-          emissive={exitUnlocked ? '#33ff66' : '#ff2222'}
-          emissiveIntensity={1.5}
-        />
+        <meshStandardMaterial color="#220000" emissive={exitUnlocked ? '#33ff66' : '#ff2222'} emissiveIntensity={1.5} />
       </mesh>
     </group>
   )
