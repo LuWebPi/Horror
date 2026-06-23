@@ -9,11 +9,10 @@ import {
   MAZE_DEPTH,
   CELL_SIZE,
   FLOOR_HEIGHT,
+  WALL_HEIGHT,
   cellToWorld,
 } from '@/lib/maze'
 import { asset } from '@/lib/asset'
-
-const WALL_HEIGHT = 4.2
 
 export function Environment() {
   const [wallTex, floorTex, ceilTex, bloodTex] = useTexture([
@@ -62,20 +61,20 @@ export function Environment() {
         const y = floor * FLOOR_HEIGHT
         return (
           <group key={floor} position={[0, y, 0]}>
-            {/* Floor */}
+            {/* Floor — lightened color tint to brighten the dark texture */}
             <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
               <planeGeometry args={[worldWidth, worldDepth]} />
-              <meshStandardMaterial map={floorTex} roughness={0.95} metalness={0.05} color="#6a5a4a" />
+              <meshStandardMaterial map={floorTex} roughness={0.95} metalness={0.05} color="#c8b89a" />
             </mesh>
-            {/* Ceiling (skip ceiling where stairs are, for openness — but simpler: keep ceilings, stairs are teleports) */}
+            {/* Ceiling */}
             <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, WALL_HEIGHT, 0]} receiveShadow>
               <planeGeometry args={[worldWidth, worldDepth]} />
-              <meshStandardMaterial map={ceilTex} roughness={1} metalness={0} color="#5a4a3a" />
+              <meshStandardMaterial map={ceilTex} roughness={1} metalness={0} color="#b8a890" />
             </mesh>
-            {/* Walls */}
+            {/* Walls — lightened to brighten the dark asylum texture */}
             <Instances limit={positions.length} castShadow receiveShadow>
               <boxGeometry args={[CELL_SIZE, WALL_HEIGHT, CELL_SIZE]} />
-              <meshStandardMaterial map={wallTex} roughness={0.9} metalness={0.05} color="#8a7a6a" />
+              <meshStandardMaterial map={wallTex} roughness={0.9} metalness={0.05} color="#d8c8a8" />
               {positions.map((p, i) => (
                 <Instance key={i} position={[p[0], WALL_HEIGHT / 2, p[2]]} />
               ))}
@@ -84,10 +83,8 @@ export function Environment() {
         )
       })}
 
-      {/* Stairs visual: a ramp between ground (y=0) and upper (y=FLOOR_HEIGHT) at [8,6] */}
-      <StairsVisual col={8} row={6} fromFloor={0} toFloor={1} />
-      {/* Basement trapdoor hint (just a darker patch on the floor) */}
-      <BasementHatch />
+      {/* Stairs visual between ground and upper floor at [5,4] */}
+      <StairsVisual col={5} row={4} fromFloor={0} toFloor={1} />
 
       {/* Blood decals for atmosphere */}
       <BloodDecals bloodTex={bloodTex} />
@@ -101,15 +98,15 @@ function StairsVisual({ col, row, fromFloor, toFloor }: {
   const [x, , z] = cellToWorld(col, row, fromFloor)
   const yBase = fromFloor * FLOOR_HEIGHT
   const yTop = toFloor * FLOOR_HEIGHT
-  const steps = 8
+  const steps = 6
   return (
     <group position={[x, yBase, z]}>
       {Array.from({ length: steps }).map((_, i) => {
         const t = i / steps
-        const y = yBase + (yTop - yBase) * t
+        const y = (yTop - yBase) * t
         return (
-          <mesh key={i} position={[0, y - yBase + 0.25, -1.5 + i * 0.4]} castShadow>
-            <boxGeometry args={[1.8, 0.5, 0.4]} />
+          <mesh key={i} position={[0, y + 0.2, -0.9 + i * 0.35]} castShadow>
+            <boxGeometry args={[1.6, 0.4, 0.35]} />
             <meshStandardMaterial color="#3a2a1a" roughness={0.9} />
           </mesh>
         )
@@ -118,20 +115,10 @@ function StairsVisual({ col, row, fromFloor, toFloor }: {
   )
 }
 
-function BasementHatch() {
-  const [x, y, z] = cellToWorld(1, 6, 0)
-  return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[x, y + 0.05, z]}>
-      <planeGeometry args={[2.2, 2.2]} />
-      <meshStandardMaterial color="#1a0e08" roughness={1} transparent opacity={0.8} side={THREE.DoubleSide} />
-    </mesh>
-  )
-}
-
 function BloodDecals({ bloodTex }: { bloodTex: THREE.Texture }) {
   const decals = useMemo<[number, number, number][]>(
     () => [
-      [5, 0, 3], [11, 0, 5], [3, 1, 9], [13, 1, 9], [7, 0, 11], [9, 2, 3],
+      [5, 0, 2], [2, 0, 6], [9, 1, 6], [6, 0, 7], [3, 1, 2], [9, 0, 2],
     ],
     []
   )
@@ -141,7 +128,7 @@ function BloodDecals({ bloodTex }: { bloodTex: THREE.Texture }) {
         const [x, y, z] = cellToWorld(c, r, floor)
         return (
           <mesh key={i} rotation={[-Math.PI / 2, 0, 0]} position={[x, y + 0.02, z]}>
-            <planeGeometry args={[CELL_SIZE * 0.9, CELL_SIZE * 0.9]} />
+            <planeGeometry args={[CELL_SIZE * 0.8, CELL_SIZE * 0.8]} />
             <meshStandardMaterial map={bloodTex} transparent opacity={0.5} roughness={1} color="#4a1818" />
           </mesh>
         )

@@ -16,7 +16,8 @@ export function Furniture() {
   return (
     <group>
       {items.map((f, i) => (
-        <group key={i} position={[f.x, f.y, f.z]} rotation={[0, f.rot, 0]}>
+        // scale 0.8 to fit the smaller CELL_SIZE (3.2) — keeps the cramped feel
+        <group key={i} position={[f.x, f.y, f.z]} rotation={[0, f.rot, 0]} scale={[0.8, 0.8, 0.8]}>
           {renderPiece(f.type)}
         </group>
       ))}
@@ -24,7 +25,7 @@ export function Furniture() {
   )
 }
 
-function M({ children, color = '#3a2a1a', rough = 0.8, metal = 0 }: {
+function M({ children, color = '#5a4a3a', rough = 0.8, metal = 0 }: {
   children: React.ReactNode; color?: string; rough?: number; metal?: number
 }) {
   return <meshStandardMaterial color={color} roughness={rough} metalness={metal} />
@@ -286,7 +287,7 @@ export function CreakyFloors() {
     <group>
       {cells.map((c, i) => (
         <mesh key={i} rotation={[-Math.PI / 2, 0, 0]} position={[c.pos[0], c.pos[1] + 0.03, c.pos[2]]}>
-          <planeGeometry args={[3.6, 3.6]} />
+          <planeGeometry args={[2.8, 2.8]} />
           <meshStandardMaterial color="#1a0e08" roughness={1} transparent opacity={0.5} side={THREE.DoubleSide} />
         </mesh>
       ))}

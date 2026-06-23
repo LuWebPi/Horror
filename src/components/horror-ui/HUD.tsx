@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useGameStore } from '@/lib/game-store'
-import { Brain, Battery, KeyRound, DoorOpen, Volume2, Eye, EyeOff, Footprints } from 'lucide-react'
+import { Brain, KeyRound, DoorOpen, Volume2, Eye, EyeOff, Footprints } from 'lucide-react'
 
 function useTick(ms = 100) {
   const [, setT] = useState(0)
@@ -14,7 +14,6 @@ function useTick(ms = 100) {
 
 export function HUD() {
   const sanity = useGameStore((s) => Math.round(s.sanity))
-  const battery = useGameStore((s) => Math.round(s.battery))
   const keysCollected = useGameStore((s) => s.keysCollected)
   const totalKeys = useGameStore((s) => s.totalKeys)
   const exitUnlocked = useGameStore((s) => s.exitUnlocked)
@@ -75,7 +74,6 @@ export function HUD() {
           </div>
         </div>
         <StatBar icon={<Brain className="w-4 h-4" />} label="SANITY" value={sanity} color="from-rose-900 to-rose-500" pulse={lowSanity} />
-        <StatBar icon={<Battery className="w-4 h-4" />} label="BATTERY" value={battery} color="from-amber-900 to-amber-400" />
       </div>
 
       {/* Top-right objective & keys */}

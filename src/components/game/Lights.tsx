@@ -3,11 +3,9 @@
 import { useRef, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { LIGHT_CELLS, cellToWorld, FLOOR_HEIGHT } from '@/lib/maze'
+import { cellToWorld, WALL_HEIGHT } from '@/lib/maze'
 import { getAudio } from '@/lib/audio'
 import { useGameStore } from '@/lib/game-store'
-
-const WALL_HEIGHT = 4.2
 
 interface FlickerLightProps {
   position: [number, number, number]
@@ -75,7 +73,7 @@ function FlickerLight({
         <meshStandardMaterial color="#111" />
       </mesh>
       {behavior !== 'dead' && (
-        <pointLight ref={lightRef} color={color} intensity={baseIntensity} distance={11} decay={2} castShadow={false} />
+        <pointLight ref={lightRef} color={color} intensity={baseIntensity} distance={20} decay={0} castShadow={false} />
       )}
     </group>
   )
@@ -85,19 +83,22 @@ export function Lights() {
   const timeOfDay = useGameStore((s) => s.timeOfDay)
   const isDay = timeOfDay === 'day'
 
+  // Fewer lights for performance — just one per room area, but brighter
   const lights = useMemo(() => {
-    const behaviors: FlickerLightProps['behavior'][] = [
-      'steady', 'flicker', 'steady', 'flicker', 'steady', 'steady', 'flicker', 'steady',
+    const positions = [
+      { cell: [2, 2], floor: 0 }, { cell: [6, 2], floor: 0 }, { cell: [9, 2], floor: 0 },
+      { cell: [2, 6], floor: 0 }, { cell: [5, 6], floor: 0 }, { cell: [9, 6], floor: 0 },
+      { cell: [2, 2], floor: 1 }, { cell: [6, 2], floor: 1 }, { cell: [9, 2], floor: 1 },
+      { cell: [2, 6], floor: 1 }, { cell: [5, 6], floor: 1 }, { cell: [9, 6], floor: 1 },
     ]
-    return LIGHT_CELLS.map((lc, i) => {
+    return positions.map((lc, i) => {
       const [x, y, z] = cellToWorld(lc.cell[0], lc.cell[1], lc.floor)
-      const isBasement = lc.floor === 2
       return {
-        position: [x, y + WALL_HEIGHT - 0.5, z] as [number, number, number],
-        behavior: behaviors[i % behaviors.length],
+        position: [x, y + WALL_HEIGHT - 0.4, z] as [number, number, number],
+        behavior: 'steady' as const,
         flickerSeed: i * 2.7,
-        color: isBasement ? '#ffaa55' : (i % 3 === 0 ? '#9fd0ff' : '#ffd9a0'),
-        baseIntensity: isBasement ? 6 : 9,
+        color: '#fff0d0',
+        baseIntensity: 15,
         isDay,
       }
     })
@@ -105,13 +106,12 @@ export function Lights() {
 
   return (
     <>
-      {/* Daytime: bright sun-like ambient. Nighttime: dim moonlight. */}
-      <ambientLight intensity={isDay ? 0.55 : 0.18} color={isDay ? '#fff4e0' : '#2a2a4a'} />
-      <hemisphereLight args={isDay ? ['#fff0d8', '#5a4a3a', 0.7] : ['#2a2a3a', '#080808', 0.25]} />
-      {/* A directional "sun/moon" for nicer shading */}
+      {/* Very bright ambient so the whole house is well-lit */}
+      <ambientLight intensity={isDay ? 1.6 : 0.7} color={isDay ? '#fff8ee' : '#6a6a8a'} />
+      <hemisphereLight args={isDay ? ['#fff5e0', '#8a7a6a', 1.5] : ['#5a5a7a', '#2a2a3a', 0.7]} />
       <directionalLight
-        position={[20, 30, 10]}
-        intensity={isDay ? 0.7 : 0.15}
+        position={[10, 20, 8]}
+        intensity={isDay ? 1.2 : 0.3}
         color={isDay ? '#fff2d0' : '#6070a0'}
       />
       {lights.map((l, i) => (

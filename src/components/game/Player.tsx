@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useEffect, useMemo, useLayoutEffect } from 'react'
+import { useRef, useEffect, useMemo } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import {
@@ -45,9 +45,7 @@ export function Player() {
   const { camera } = useThree()
   const sensitivity = useGameStore((s) => s.sensitivity)
 
-  const spotRef = useRef<THREE.SpotLight>(null)
   const camLightRef = useRef<THREE.PointLight>(null)
-  const spotTarget = useMemo(() => new THREE.Object3D(), [])
 
   const st = useRef({
     yaw: Math.PI,
@@ -108,10 +106,6 @@ export function Player() {
       useGameStore.getState().setTimeOfDay('day')
     }
   }, [phase, day, camera])
-
-  useLayoutEffect(() => {
-    if (spotRef.current) spotRef.current.target = spotTarget
-  }, [spotTarget])
 
   useFrame((frametime, delta) => {
     const game = useGameStore.getState()
@@ -249,44 +243,20 @@ export function Player() {
       }
     }
 
-    // ===== Flashlight toggle (now a no-op — always on) =====
+    // ===== No flashlight toggle anymore — house is well-lit =====
     if (consumeFlashlightToggle()) {
-      // flashlight can't be turned off; just a subtle click sound feedback
       getAudio().playFlicker()
     }
 
-    // ===== Flashlight spotlight (always on) =====
-    const flashlightOn = game.battery > 0  // always on if battery exists
-    if (spotRef.current) {
-      spotRef.current.position.copy(camera.position)
-      spotTarget.position.set(
-        camera.position.x + fx * 10,
-        camera.position.y + Math.sin(s.pitch) * 4 - 0.2,
-        camera.position.z + fz * 10
-      )
-      // brighter during day (we can see everything), normal at night
-      spotRef.current.intensity = flashlightOn ? (isDay ? 8 : 16) : 0
-      if (flashlightOn && game.battery < 25) {
-        spotRef.current.intensity *= Math.random() > 0.85 ? 0.4 : 1
-        if (t - s.flickerAt > 0.5 && Math.random() > 0.9) {
-          s.flickerAt = t
-          getAudio().playFlicker()
-        }
-      }
-    }
+    // ===== Camera-follow soft light (no flashlight beam — just fills the room) =====
     if (camLightRef.current) {
       camLightRef.current.position.copy(camera.position)
-      camLightRef.current.intensity = game.hidden ? 0.3 : (isDay ? 1.5 : 1.0)
+      // bright fill light so the player always sees the room around them
+      camLightRef.current.intensity = game.hidden ? 0.2 : (isDay ? 2.5 : 1.6)
     }
 
-    // ===== Battery & sanity =====
-    if (flashlightOn) {
-      // battery drains slower during day (less reliance on flashlight)
-      game.drainBattery((isDay ? 0.5 : 1.0) * delta)
-      game.restoreSanity(1.5 * delta)
-    } else {
-      game.drainSanity(2.0 * delta)
-    }
+    // ===== Sanity (no battery drain — no flashlight) =====
+    game.restoreSanity(0.8 * delta)
     const prox = 1 - game.monsterProximity
     if (prox > 0.5) game.drainSanity((prox - 0.5) * 5 * delta)
     if (game.hidden) game.restoreSanity(2 * delta)
@@ -378,18 +348,8 @@ export function Player() {
 
   return (
     <>
-      <spotLight
-        ref={spotRef}
-        angle={0.62}
-        penumbra={0.45}
-        distance={22}
-        decay={1.0}
-        intensity={14}
-        color="#fff2d8"
-        castShadow={false}
-      />
-      <pointLight ref={camLightRef} position={[0, 0, 0]} intensity={1.2} distance={6} decay={2} color="#cfd6e6" />
-      <primitive object={spotTarget} />
+      {/* Soft fill light following the camera — no flashlight beam, just room fill */}
+      <pointLight ref={camLightRef} position={[0, 0, 0]} intensity={2.0} distance={15} decay={0} color="#fff0d8" />
     </>
   )
 }

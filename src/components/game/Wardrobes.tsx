@@ -15,7 +15,7 @@ export function Wardrobes() {
   return (
     <group>
       {items.map((w, i) => (
-        <group key={i} position={[w.x, w.y, w.z]} rotation={[0, w.rot, 0]}>
+        <group key={i} position={[w.x, w.y, w.z]} rotation={[0, w.rot, 0]} scale={[0.8, 0.8, 0.8]}>
           <mesh position={[0, 1.1, 0]} castShadow>
             <boxGeometry args={[1.2, 2.2, 0.7]} />
             <meshStandardMaterial color="#2a1810" roughness={0.85} />
