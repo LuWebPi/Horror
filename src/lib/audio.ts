@@ -5,6 +5,8 @@
 // Plays TTS voice files from /audio/*.mp3 via HTMLAudioElement.
 // Must be initialised after a user gesture (the Start button).
 
+import { asset } from './asset'
+
 export class AudioEngine {
   ctx: AudioContext | null = null
   master: GainNode | null = null
@@ -415,11 +417,12 @@ export class AudioEngine {
   // ===== VOICE (TTS files) =====
   playVoice(src: string, volume = 1) {
     if (!this.ctx) return
-    let el = this.voices.get(src)
+    const path = asset(src)
+    let el = this.voices.get(path)
     if (!el) {
-      el = new Audio(src)
+      el = new Audio(path)
       el.preload = 'auto'
-      this.voices.set(src, el)
+      this.voices.set(path, el)
     }
     el.currentTime = 0
     el.volume = Math.max(0, Math.min(1, volume * this.volume))

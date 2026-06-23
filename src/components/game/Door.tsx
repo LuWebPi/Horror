@@ -5,10 +5,11 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useTexture } from '@react-three/drei'
 import { EXIT_CELL, cellToWorld, CELL_SIZE } from '@/lib/maze'
+import { asset } from '@/lib/asset'
 import { useGameStore } from '@/lib/game-store'
 
 export function Door() {
-  const doorTex = useTexture('/textures/door.png')
+  const doorTex = useTexture(asset('/textures/door.png'))
   const doorTexConfigured = useRef(false)
   if (!doorTexConfigured.current) {
     doorTex.colorSpace = THREE.SRGBColorSpace

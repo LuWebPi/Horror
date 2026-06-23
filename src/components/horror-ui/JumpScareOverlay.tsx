@@ -1,13 +1,14 @@
 'use client'
 
 import { useGameStore } from '@/lib/game-store'
+import { asset } from '@/lib/asset'
 
 export function JumpScareOverlay() {
   const jumpScare = useGameStore((s) => s.jumpScare)
 
   if (!jumpScare) return null
 
-  const face = jumpScare === 'monster1' ? '/textures/monster_face.png' : '/textures/monster_face2.png'
+  const face = jumpScare === 'monster1' ? asset('/textures/monster_face.png') : asset('/textures/monster_face2.png')
 
   return (
     <div className="absolute inset-0 z-50 pointer-events-none overflow-hidden">

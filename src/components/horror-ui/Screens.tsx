@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useGameStore, ControlMode } from '@/lib/game-store'
 import { getAudio } from '@/lib/audio'
+import { asset } from '@/lib/asset'
 import { resetInput } from '@/lib/input'
 import { Skull, Mouse, Smartphone, Volume2, Gauge, Play, RotateCcw, Home, AlertTriangle } from 'lucide-react'
 
@@ -41,7 +42,7 @@ export function MainMenu() {
       <div
         className="absolute inset-0 opacity-20"
         style={{
-          backgroundImage: 'url(/textures/wall.png)',
+          backgroundImage: `url(${asset('/textures/wall.png')})`,
           backgroundSize: 'cover',
           filter: 'brightness(0.3) contrast(1.2)',
         }}
@@ -237,7 +238,7 @@ export function GameOverScreen() {
       <div
         className="absolute inset-0 opacity-25"
         style={{
-          backgroundImage: 'url(/textures/monster_face.png)',
+          backgroundImage: `url(${asset('/textures/monster_face.png')})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           filter: 'brightness(0.4) contrast(1.3)',

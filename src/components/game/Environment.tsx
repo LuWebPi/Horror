@@ -10,15 +10,16 @@ import {
   CELL_SIZE,
   cellToWorld,
 } from '@/lib/maze'
+import { asset } from '@/lib/asset'
 
 const WALL_HEIGHT = 4
 
 export function Environment() {
   const [wallTex, floorTex, ceilTex, bloodTex] = useTexture([
-    '/textures/wall.png',
-    '/textures/floor.png',
-    '/textures/ceiling.png',
-    '/textures/blood.png',
+    asset('/textures/wall.png'),
+    asset('/textures/floor.png'),
+    asset('/textures/ceiling.png'),
+    asset('/textures/blood.png'),
   ])
 
   // Configure texture tiling once

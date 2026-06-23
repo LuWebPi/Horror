@@ -14,6 +14,7 @@ import {
 import { entities, scare } from '@/lib/entities'
 import { useGameStore } from '@/lib/game-store'
 import { getAudio } from '@/lib/audio'
+import { asset } from '@/lib/asset'
 
 const CATCH_DISTANCE = 1.3
 const SIGHT_RANGE = 11
@@ -25,8 +26,8 @@ const STUN_DURATION = 2.5
 const HEAR_RADIUS = [0, 6, 14, 18]
 
 export function Monster() {
-  const faceTex = useTexture('/textures/monster_face.png')
-  const face2Tex = useTexture('/textures/monster_face2.png')
+  const faceTex = useTexture(asset('/textures/monster_face.png'))
+  const face2Tex = useTexture(asset('/textures/monster_face2.png'))
   const texConfigured = useRef(false)
   if (!texConfigured.current) {
     faceTex.colorSpace = THREE.SRGBColorSpace
