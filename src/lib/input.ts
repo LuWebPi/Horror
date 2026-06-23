@@ -12,6 +12,7 @@ export interface InputState {
   lookDeltaX: number
   lookDeltaY: number
   sprint: boolean
+  crouch: boolean
   // Edge-triggered flags, consumed each frame
   interactPressed: boolean
   flashlightToggled: boolean
@@ -23,6 +24,7 @@ export const input: InputState = {
   lookDeltaX: 0,
   lookDeltaY: 0,
   sprint: false,
+  crouch: false,
   interactPressed: false,
   flashlightToggled: false,
 }
@@ -34,6 +36,7 @@ export function resetInput() {
   input.lookDeltaX = 0
   input.lookDeltaY = 0
   input.sprint = false
+  input.crouch = false
   input.interactPressed = false
   input.flashlightToggled = false
 }
@@ -82,6 +85,7 @@ export function attachKeyboardControls() {
     keys[e.code] = true
     if (e.code === 'KeyF') input.flashlightToggled = true
     if (e.code === 'KeyE' || e.code === 'Space') input.interactPressed = true
+    if (e.code === 'KeyC' || e.code === 'ControlLeft' || e.code === 'ControlRight') input.crouch = true
     if (e.code === 'KeyF' || e.code === 'KeyE' || e.code.startsWith('Arrow')) {
       e.preventDefault()
     }
@@ -89,6 +93,7 @@ export function attachKeyboardControls() {
   }
   const onKeyUp = (e: KeyboardEvent) => {
     keys[e.code] = false
+    if (e.code === 'KeyC' || e.code === 'ControlLeft' || e.code === 'ControlRight') input.crouch = false
     updateMoveFromKeys()
   }
   const onMouseMove = (e: MouseEvent) => {
@@ -161,6 +166,9 @@ export function touchFlashlight() {
 }
 export function touchSprint(v: boolean) {
   input.sprint = v
+}
+export function touchCrouch(v: boolean) {
+  input.crouch = v
 }
 
 // Consume edge-triggered flags (called by Player each frame)

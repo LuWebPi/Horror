@@ -64,11 +64,9 @@ export function MainMenu() {
           ASYLUM
         </h1>
         <p className="text-rose-300/70 tracking-[0.4em] text-xs mb-1">THE LAST WARD</p>
-        <p className="text-white/40 text-sm mb-8 italic">
-          A psychological descent into the dark.
+        <p className="text-white/40 text-sm mb-4 italic">
+          She hears everything. You have 5 nights to escape.
         </p>
-
-        {/* Warning */}
         <div className="mb-6 px-4 py-2 rounded border border-rose-900/40 bg-rose-950/20 flex items-center justify-center gap-2 text-rose-300/70 text-xs">
           <AlertTriangle className="w-4 h-4" />
           Contains sudden scares, flashing lights & disturbing imagery.
@@ -98,15 +96,15 @@ export function MainMenu() {
           {controlMode === 'keyboard' ? (
             <>
               <b className="text-white/60">WASD</b> move · <b className="text-white/60">Mouse</b> look ·{' '}
-              <b className="text-white/60">Shift</b> run · <b className="text-white/60">F</b> flashlight ·{' '}
-              <b className="text-white/60">E</b> interact
-              <div className="mt-1 text-white/30">Click the screen to lock the mouse. ESC to release.</div>
+              <b className="text-white/60">Shift</b> run · <b className="text-white/60">C/Ctrl</b> crouch ·{' '}
+              <b className="text-white/60">F</b> flashlight · <b className="text-white/60">E</b> hide / interact
+              <div className="mt-1 text-white/30">Click to lock mouse. ESC to release. Crouch to stay silent.</div>
             </>
           ) : (
             <>
               <b className="text-white/60">Left stick</b> move · <b className="text-white/60">Right drag</b> look ·{' '}
-              <b className="text-white/60">RUN/LIGHT/USE</b> buttons
-              <div className="mt-1 text-white/30">Shine your flashlight at the monster to push it back.</div>
+              <b className="text-white/60">CROUCH/RUN/LIGHT/HIDE</b> buttons
+              <div className="mt-1 text-white/30">Hide in wardrobes. She hears running & creaky floors.</div>
             </>
           )}
         </div>
@@ -218,6 +216,8 @@ function ControlOption({
 export function GameOverScreen() {
   const resetGame = useGameStore((s) => s.resetGame)
   const startGame = useGameStore((s) => s.startGame)
+  const day = useGameStore((s) => s.day)
+  const maxDays = useGameStore((s) => s.maxDays)
 
   const handleRetry = () => {
     const audio = getAudio()
@@ -250,6 +250,9 @@ export function GameOverScreen() {
         >
           YOU DIED
         </h1>
+        <p className="text-rose-300/70 mb-2 tracking-widest text-sm">
+          SHE CAUGHT YOU {maxDays} TIMES
+        </p>
         <p className="text-white/50 italic mb-10 max-w-md mx-auto">
           The dark swallowed you whole. Your screams echo through the empty corridors,
           joining the others who never left.
@@ -324,6 +327,37 @@ export function VictoryScreen() {
             <Home className="w-4 h-4" /> MAIN MENU
           </button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+export function DayTransitionScreen() {
+  const day = useGameStore((s) => s.day)
+  const maxDays = useGameStore((s) => s.maxDays)
+  return (
+    <div className="absolute inset-0 z-40 flex items-center justify-center bg-black">
+      <div
+        className="absolute inset-0 opacity-40"
+        style={{
+          background:
+            'radial-gradient(ellipse at center, rgba(80,0,0,0.5), transparent 70%)',
+        }}
+      />
+      <div className="relative z-10 text-center px-6 animate-pulse">
+        <p className="text-rose-400/70 tracking-[0.5em] text-xs mb-3">YOU WOKE UP AGAIN</p>
+        <h1
+          className="text-8xl font-black tracking-widest text-rose-500 mb-3"
+          style={{ textShadow: '0 0 50px rgba(180,0,0,0.7)', fontFamily: 'Georgia, serif' }}
+        >
+          DAY {day}
+        </h1>
+        <p className="text-white/40 italic text-sm">
+          {day >= maxDays
+            ? 'One last chance. She is faster now.'
+            : `${maxDays - day + 1} ${maxDays - day + 1 === 1 ? 'night' : 'nights'} remain.`}
+        </p>
+        <p className="text-rose-300/50 text-xs mt-6 tracking-widest">Your keys are still with you...</p>
       </div>
     </div>
   )

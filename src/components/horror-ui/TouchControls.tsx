@@ -7,16 +7,19 @@ import {
   touchInteract,
   touchFlashlight,
   touchSprint,
+  touchCrouch,
   resetInput,
 } from '@/lib/input'
 import { useGameStore } from '@/lib/game-store'
-import { Flashlight, Hand, Zap, MoveRight, Eye } from 'lucide-react'
+import { Flashlight, Hand, Zap, MoveRight, Eye, Footprints } from 'lucide-react'
 
 const JOY_RADIUS = 55
 
 export function TouchControls() {
   const flashlightOn = useGameStore((s) => s.flashlightOn)
   const toggleFlashlight = useGameStore((s) => s.toggleFlashlight)
+  const hidden = useGameStore((s) => s.hidden)
+  const [crouching, setCrouching] = useState(false)
 
   // Joystick state
   const [joyActive, setJoyActive] = useState(false)
@@ -136,6 +139,17 @@ export function TouchControls() {
       {/* Action buttons (bottom right) */}
       <div className="absolute right-6 bottom-8 flex flex-col items-end gap-4">
         <div className="flex gap-4">
+          {/* Crouch (toggle) */}
+          <button
+            className={`w-16 h-16 rounded-full border-2 backdrop-blur flex flex-col items-center justify-center ${
+              crouching ? 'bg-emerald-600/40 border-emerald-400/60 text-emerald-100' : 'bg-white/10 border-white/20 text-white/80'
+            }`}
+            onPointerDown={(e) => { e.preventDefault(); const v = !crouching; setCrouching(v); touchCrouch(v) }}
+          >
+            <Footprints className="w-6 h-6" />
+            <span className="text-[10px] mt-0.5">CROUCH</span>
+          </button>
+
           {/* Sprint */}
           <button
             className="w-16 h-16 rounded-full bg-white/10 border border-white/20 backdrop-blur flex flex-col items-center justify-center text-white/80 active:bg-amber-500/40"
@@ -162,13 +176,15 @@ export function TouchControls() {
           </button>
         </div>
 
-        {/* Interact */}
+        {/* Interact / Hide */}
         <button
-          className="w-16 h-16 rounded-full bg-white/10 border border-white/20 backdrop-blur flex flex-col items-center justify-center text-white/80 active:bg-emerald-500/40"
+          className={`w-20 h-20 rounded-full border-2 backdrop-blur flex flex-col items-center justify-center ${
+            hidden ? 'bg-emerald-600/40 border-emerald-400/60 text-emerald-100' : 'bg-white/10 border-white/20 text-white/80 active:bg-emerald-500/40'
+          }`}
           onPointerDown={(e) => { e.preventDefault(); touchInteract() }}
         >
-          <Hand className="w-6 h-6" />
-          <span className="text-[10px] mt-0.5">USE</span>
+          <Hand className="w-7 h-7" />
+          <span className="text-[10px] mt-0.5">{hidden ? 'EXIT' : 'HIDE'}</span>
         </button>
       </div>
     </div>

@@ -4,24 +4,34 @@ import { useRef, useMemo } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useTexture, Billboard } from '@react-three/drei'
-import { MONSTER_SPAWN_CELL, cellToWorld, isWallAt } from '@/lib/maze'
+import {
+  MONSTER_SPAWN_CELL,
+  PATROL_WAYPOINTS,
+  cellToWorld,
+  isBlocked,
+  hasLineOfSight,
+} from '@/lib/maze'
 import { entities, scare } from '@/lib/entities'
 import { useGameStore } from '@/lib/game-store'
 import { getAudio } from '@/lib/audio'
 
-const MONSTER_SPEED = 1.7
 const CATCH_DISTANCE = 1.3
-const FLASHLIGHT_RANGE = 9
-const FLASHLIGHT_CONE = 0.5 // cos of half-angle (smaller = narrower)
+const SIGHT_RANGE = 11
+const SIGHT_CONE = 0.45          // cos half-angle
+const FLASHLIGHT_STUN_TIME = 1.0 // seconds of continuous light to stun
+const STUN_DURATION = 2.5
+
+// Hearing radius per player noise level
+const HEAR_RADIUS = [0, 6, 14, 18]
 
 export function Monster() {
   const faceTex = useTexture('/textures/monster_face.png')
   const face2Tex = useTexture('/textures/monster_face2.png')
-  const faceTexConfigured = useRef(false)
-  if (!faceTexConfigured.current) {
+  const texConfigured = useRef(false)
+  if (!texConfigured.current) {
     faceTex.colorSpace = THREE.SRGBColorSpace
     face2Tex.colorSpace = THREE.SRGBColorSpace
-    faceTexConfigured.current = true
+    texConfigured.current = true
   }
 
   const groupRef = useRef<THREE.Group>(null)
@@ -30,167 +40,318 @@ export function Monster() {
   const faceMatRef = useRef<THREE.MeshBasicMaterial>(null)
   const { camera } = useThree()
 
-  // Internal state
-  const state = useRef({
+  const st = useRef({
     active: false,
     activatedAt: 0,
-    lit: false,         // currently in flashlight beam
-    litCooldown: 0,
-    visible: false,
+    litAccum: 0,        // accumulated time being flashlight-lit
     lastWhisper: 0,
-    faceSwap: 0,
-    recoil: 0,
-    caughtTriggered: false,
+    lastGrowl: 0,
+    lastSting: 0,
+    stepDist: 0,        // distance accumulator for footsteps
+    searchWanderT: 0,
+    searchDir: 0,
+    caughtHandled: false,
     spawnX: 0,
     spawnZ: 0,
   })
 
-  // Init spawn position once
   useMemo(() => {
     const [sx, , sz] = cellToWorld(MONSTER_SPAWN_CELL[0], MONSTER_SPAWN_CELL[1])
-    state.current.spawnX = sx
-    state.current.spawnZ = sz
+    st.current.spawnX = sx
+    st.current.spawnZ = sz
     entities.monster.x = sx
     entities.monster.z = sz
+    entities.monster.targetX = sx
+    entities.monster.targetZ = sz
   }, [])
 
-  // Read frequently-changing values via getState in the frame loop (avoids 60fps re-renders)
+  // Reset monster when a new day starts (called via phase effect in Player, but also keep local)
   const setMonsterProximity = useGameStore((s) => s.setMonsterProximity)
   const setTension = useGameStore((s) => s.setTension)
+  const setAIState = useGameStore((s) => s.setAIState)
 
   useFrame((frametime, delta) => {
     const g = groupRef.current
     if (!g) return
-    const st = state.current
+    const s = st.current
+    const game = useGameStore.getState()
+    if (game.phase !== 'playing') return
     const t = frametime.clock.elapsedTime
 
-    // Activation: after first key collected OR after 40s
-    if (!st.active) {
-      const keys = useGameStore.getState().keysCollected
-      if (keys >= 1 || t > 40) {
-        st.active = true
-        st.activatedAt = t
+    // Activation: immediately on day 1 (Granny is always home), but give 3s grace
+    if (!s.active) {
+      if (t > 3) {
+        s.active = true
+        s.activatedAt = t
         entities.monster.active = true
         g.visible = true
-        getAudio().playVoice('/audio/laugh.mp3', 0.8)
-        useGameStore.getState().showMessage('Something is awake...', 3500)
       } else {
         g.visible = false
         return
       }
     }
 
-    // Position group
-    g.position.x = entities.monster.x
-    g.position.z = entities.monster.z
+    const m = entities.monster
+    const player = entities.player
 
-    // Compute distance to player
-    const dx = entities.player.x - entities.monster.x
-    const dz = entities.player.z - entities.monster.z
+    // ---- SENSE: sight ----
+    const dx = player.x - m.x
+    const dz = player.z - m.z
     const dist = Math.hypot(dx, dz)
-    entities.monster.distanceToPlayer = dist
+    m.distanceToPlayer = dist
+    const canSee =
+      !player.hidden &&
+      dist < SIGHT_RANGE &&
+      hasLineOfSight(m.x, m.z, player.x, player.z) &&
+      (() => {
+        // monster facing toward player?
+        const fx = -Math.sin(m.yaw)
+        const fz = -Math.cos(m.yaw)
+        const dot = (fx * dx + fz * dz) / (dist || 1)
+        return dot > SIGHT_CONE
+      })()
+    m.canSeePlayer = canSee
 
-    // Determine if monster is in the flashlight beam
-    // direction from player to monster
-    const toMx = dx / (dist || 1)
-    const toMz = dz / (dist || 1)
-    // dot with player forward
-    const dot = entities.player.fx * toMx + entities.player.fz * toMz
-    const flashlightOn = useGameStore.getState().flashlightOn && useGameStore.getState().battery > 0
+    // ---- SENSE: hearing ----
+    // one-shot noise events (creaky floors, bumps)
+    let heard = false
+    if (scare.noiseEvent) {
+      const ev = scare.noiseEvent
+      const nd = Math.hypot(ev.x - m.x, ev.z - m.z)
+      if (nd < HEAR_RADIUS[ev.level] && ev.t > t - 0.5) {
+        m.targetX = ev.x
+        m.targetZ = ev.z
+        m.lastSeenX = ev.x
+        m.lastSeenZ = ev.z
+        if (m.state !== 'chase') {
+          m.state = 'investigate'
+          m.stateTimer = 0
+        }
+        heard = true
+      }
+      scare.noiseEvent = null
+    }
+    // continuous noise from player movement
+    if (!heard && player.noiseLevel > 0 && !player.hidden) {
+      const hr = HEAR_RADIUS[player.noiseLevel]
+      if (dist < hr && m.state === 'patrol') {
+        m.targetX = player.x
+        m.targetZ = player.z
+        m.lastSeenX = player.x
+        m.lastSeenZ = player.z
+        m.state = 'investigate'
+        m.stateTimer = 0
+      }
+    }
+
+    // ---- Flashlight stun (only when NOT chasing — light dazes her) ----
+    const flashlightOn = game.flashlightOn && game.battery > 0
+    const toMx = (m.x - player.x) / (dist || 1)
+    const toMz = (m.z - player.z) / (dist || 1)
+    const beamDot = player.fx * toMx + player.fz * toMz
     const inBeam =
-      flashlightOn &&
-      dist < FLASHLIGHT_RANGE &&
-      dot > FLASHLIGHT_CONE
-
-    // smooth lit state
-    st.lit = inBeam
-    if (st.lit) {
-      st.litCooldown = 0.6
-    } else {
-      st.litCooldown = Math.max(0, st.litCooldown - delta)
-    }
-    const effectivelyLit = st.lit || st.litCooldown > 0
-
-    // Movement: chase player, but recoil when lit
-    let speed = MONSTER_SPEED * (0.6 + (1 - useGameStore.getState().sanity / 100) * 0.8)
-    if (effectivelyLit) {
-      // push back (recoil) and slow
-      speed = -MONSTER_SPEED * 0.8
-      st.recoil = THREE.MathUtils.lerp(st.recoil, 1, delta * 4)
-    } else {
-      st.recoil = THREE.MathUtils.lerp(st.recoil, 0, delta * 2)
-    }
-
-    if (dist > 0.01) {
-      const nx = dx / dist
-      const nz = dz / dist
-      const moveX = nx * speed * delta
-      const moveZ = nz * speed * delta
-      // attempt move with wall sliding
-      const newX = entities.monster.x + moveX
-      const newZ = entities.monster.z + moveZ
-      if (!isWallAt(newX, entities.monster.z, 0.5)) {
-        entities.monster.x = newX
+      flashlightOn && dist < 9 && beamDot > 0.5 && hasLineOfSight(player.x, player.z, m.x, m.z)
+    if (inBeam && m.state !== 'chase') {
+      s.litAccum += delta
+      if (s.litAccum > FLASHLIGHT_STUN_TIME) {
+        m.state = 'stunned'
+        m.stunTimer = STUN_DURATION
+        s.litAccum = 0
+        getAudio().playGrannyGrowl()
       }
-      if (!isWallAt(entities.monster.x, newZ, 0.5)) {
-        entities.monster.z = newZ
+    } else {
+      s.litAccum = Math.max(0, s.litAccum - delta * 0.5)
+    }
+
+    // ---- STATE MACHINE ----
+    m.stateTimer += delta
+
+    // stunned: freeze, count down
+    if (m.state === 'stunned') {
+      m.stunTimer -= delta
+      if (m.stunTimer <= 0) {
+        m.state = canSee ? 'chase' : 'search'
+        m.stateTimer = 0
+        m.lastSeenX = player.x
+        m.lastSeenZ = player.z
+      }
+    } else if (canSee) {
+      // spotted!
+      if (m.state !== 'chase') {
+        if (t - s.lastSting > 4) {
+          s.lastSting = t
+          getAudio().playTensionSting()
+        }
+      }
+      m.state = 'chase'
+      m.stateTimer = 0
+      m.lastSeenX = player.x
+      m.lastSeenZ = player.z
+      m.targetX = player.x
+      m.targetZ = player.z
+    } else if (m.state === 'chase') {
+      // lost sight
+      if (m.stateTimer > 3) {
+        m.state = 'search'
+        m.stateTimer = 0
+        m.targetX = m.lastSeenX
+        m.targetZ = m.lastSeenZ
+      } else {
+        // keep going to last known
+        m.targetX = m.lastSeenX
+        m.targetZ = m.lastSeenZ
+      }
+    } else if (m.state === 'investigate') {
+      // reached target?
+      const td = Math.hypot(m.targetX - m.x, m.targetZ - m.z)
+      if (td < 0.8 || m.stateTimer > 8) {
+        m.state = 'search'
+        m.stateTimer = 0
+        s.searchWanderT = 0
+      }
+    } else if (m.state === 'search') {
+      // wander near lastSeen for a while, then resume patrol
+      s.searchWanderT -= delta
+      const td = Math.hypot(m.targetX - m.x, m.targetZ - m.z)
+      if (td < 0.8 || s.searchWanderT <= 0) {
+        // pick a new nearby wander target
+        s.searchWanderT = 2 + Math.random() * 2
+        const ang = Math.random() * Math.PI * 2
+        const r = 2 + Math.random() * 3
+        m.targetX = m.lastSeenX + Math.cos(ang) * r
+        m.targetZ = m.lastSeenZ + Math.sin(ang) * r
+      }
+      if (m.stateTimer > 12) {
+        m.state = 'patrol'
+        m.stateTimer = 0
+      }
+    } else {
+      // patrol: move to current waypoint
+      const wp = PATROL_WAYPOINTS[m.waypoint]
+      const [wx, , wz] = cellToWorld(wp[0], wp[1])
+      m.targetX = wx
+      m.targetZ = wz
+      const wd = Math.hypot(wx - m.x, wz - m.z)
+      if (wd < 0.8) {
+        m.waypoint = (m.waypoint + 1) % PATROL_WAYPOINTS.length
       }
     }
 
-    // Make body/face always face player (billboard handles face)
+    setAIState(m.state)
+
+    // ---- MOVEMENT ----
+    let speed = 0
+    switch (m.state) {
+      case 'patrol': speed = 1.1; break
+      case 'investigate': speed = 1.8; break
+      case 'search': speed = 1.4; break
+      case 'chase': speed = 2.5 + (game.day - 1) * 0.25; break // gets faster each day
+      case 'stunned': speed = 0; break
+    }
+    // sanity-based slight speedup when player is breaking
+    speed *= 1 + (1 - game.sanity / 100) * 0.15
+
+    if (speed > 0) {
+      const tdx = m.targetX - m.x
+      const tdz = m.targetZ - m.z
+      const tlen = Math.hypot(tdx, tdz)
+      if (tlen > 0.05) {
+        const nx = tdx / tlen
+        const nz = tdz / tlen
+        // facing
+        m.yaw = Math.atan2(tdx, tdz)
+        const moveX = nx * speed * delta
+        const moveZ = nz * speed * delta
+        if (!isBlocked(m.x + moveX, m.z, 0.5)) m.x += moveX
+        if (!isBlocked(m.x, m.z + moveZ, 0.5)) m.z += moveZ
+        // footsteps based on distance traveled
+        s.stepDist += speed * delta
+        const stepInterval = m.state === 'chase' ? 1.1 : 1.5
+        if (s.stepDist > stepInterval) {
+          s.stepDist = 0
+          getAudio().grannyStep()
+        }
+      }
+    }
+
+    // face the player when chasing (for the billboard face)
     if (bodyRef.current) {
-      bodyRef.current.rotation.y = Math.atan2(dx, dz)
+      const fy = m.state === 'chase' ? Math.atan2(dx, dz) : m.yaw
+      bodyRef.current.rotation.y = fy
     }
 
-    // Visibility for proximity/sound
-    const camPos = camera.position
-    const camToMonster = new THREE.Vector3(entities.monster.x - camPos.x, 0, entities.monster.z - camPos.z)
-    const camDist = camToMonster.length()
-    // is monster in view frustum-ish: check dot with camera forward
-    const camForward = new THREE.Vector3()
-    camera.getWorldDirection(camForward)
-    camForward.y = 0
-    camForward.normalize()
-    camToMonster.normalize()
-    const viewDot = camForward.dot(camToMonster)
-    st.visible = camDist < 14 && viewDot > 0.2
+    // ---- visuals ----
+    g.position.x = m.x
+    g.position.z = m.z
+    // bobbing while moving
+    const bob = speed > 0 ? Math.sin(t * (m.state === 'chase' ? 9 : 5)) * 0.06 : 0
+    if (bodyRef.current) bodyRef.current.position.y = 1.2 + bob
 
-    // Update eye glow intensity based on lit state
     if (eyeLightRef.current) {
-      eyeLightRef.current.intensity = effectivelyLit ? 0.4 : 2.5
+      const aggro = m.state === 'chase' ? 4 : m.state === 'stunned' ? 0.5 : 2
+      eyeLightRef.current.intensity = aggro
     }
-
-    // Face material: swap textures occasionally for unsettling effect
     if (faceMatRef.current) {
-      const swapTarget = Math.floor(t / 0.5) % 2 === 0 ? faceTex : face2Tex
+      const swapTarget = Math.floor(t / 0.4) % 2 === 0 ? faceTex : face2Tex
       if (faceMatRef.current.map !== swapTarget) {
         faceMatRef.current.map = swapTarget
         faceMatRef.current.needsUpdate = true
       }
-      // brighter (visible) when lit, dim red glow otherwise
-      faceMatRef.current.color.set(effectivelyLit ? '#ffffff' : '#7a2020')
+      faceMatRef.current.color.set(m.state === 'stunned' ? '#447' : m.state === 'chase' ? '#ffffff' : '#7a2020')
     }
 
-    // Proximity & tension for audio
+    // ---- proximity / tension / audio cues ----
     setMonsterProximity(THREE.MathUtils.clamp((dist - 1.5) / 12, 0, 1))
     const tension = THREE.MathUtils.clamp(1 - (dist - 1.5) / 10, 0, 1)
-    setTension(Math.max(tension, useGameStore.getState().tension * 0.98))
+    setTension(Math.max(tension, game.tension * 0.97))
 
-    // Random whispers when close
-    if (dist < 7 && t - st.lastWhisper > 4 + Math.random() * 4) {
-      st.lastWhisper = t
+    // growl periodically when chasing or close
+    if (dist < 8 && (m.state === 'chase' || m.state === 'investigate') && t - s.lastGrowl > 3.5 + Math.random() * 3) {
+      s.lastGrowl = t
+      getAudio().playGrannyGrowl()
+    }
+    // whispers when close
+    if (dist < 6 && t - s.lastWhisper > 4 + Math.random() * 4) {
+      s.lastWhisper = t
       getAudio().playRandomWhisper()
     }
 
-    // Catch -> trigger jump scare
-    if (dist < CATCH_DISTANCE && !st.caughtTriggered) {
-      st.caughtTriggered = true
+    // ---- CATCH ----
+    if (dist < CATCH_DISTANCE && !player.hidden && !s.caughtHandled && m.state !== 'stunned') {
+      s.caughtHandled = true
       scare.caught = true
     }
   })
 
+  // reset caughtHandled when scare.caught cleared (new day)
+  const phase = useGameStore((s) => s.phase)
+  const day = useGameStore((s) => s.day)
+  useMemo(() => {
+    st.current.caughtHandled = false
+    // reset monster position on day change
+    const [sx, , sz] = cellToWorld(MONSTER_SPAWN_CELL[0], MONSTER_SPAWN_CELL[1])
+    entities.monster.x = sx
+    entities.monster.z = sz
+    entities.monster.targetX = sx
+    entities.monster.targetZ = sz
+    entities.monster.waypoint = 0
+    entities.monster.state = 'patrol'
+    entities.monster.stateTimer = 0
+    entities.monster.stunTimer = 0
+    st.current.active = false
+    st.current.litAccum = 0
+  }, [day])
+
+  // Show/hide based on phase
+  useMemo(() => {
+    if (phase !== 'playing') {
+      st.current.active = false
+      if (groupRef.current) groupRef.current.visible = false
+    }
+  }, [phase])
+
   return (
-    <group ref={groupRef} position={[state.current.spawnX, 0, state.current.spawnZ]} visible={false}>
+    <group ref={groupRef} position={[st.current.spawnX, 0, st.current.spawnZ]} visible={false}>
       {/* Dark tall body */}
       <mesh ref={bodyRef} position={[0, 1.2, 0]} castShadow>
         <capsuleGeometry args={[0.35, 1.4, 6, 12]} />
@@ -205,18 +366,17 @@ export function Monster() {
         <capsuleGeometry args={[0.1, 1.3, 4, 8]} />
         <meshStandardMaterial color="#0c0c0c" roughness={1} />
       </mesh>
-      {/* Face billboard - always faces camera */}
+      {/* Tattered skirt (Granny-ish) */}
+      <mesh position={[0, 0.4, 0]}>
+        <coneGeometry args={[0.6, 1.0, 8]} />
+        <meshStandardMaterial color="#1a0a0a" roughness={1} />
+      </mesh>
+      {/* Face billboard */}
       <Billboard position={[0, 1.85, 0]}>
         <mesh>
           <planeGeometry args={[0.95, 0.95]} />
-          <meshBasicMaterial
-            ref={faceMatRef}
-            map={faceTex}
-            transparent
-            toneMapped={false}
-          />
+          <meshBasicMaterial ref={faceMatRef} map={faceTex} transparent toneMapped={false} />
         </mesh>
-        {/* glowing eyes */}
         <mesh position={[-0.16, 0.08, 0.01]}>
           <sphereGeometry args={[0.045, 8, 8]} />
           <meshBasicMaterial color="#ff2200" toneMapped={false} />

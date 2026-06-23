@@ -17,6 +17,8 @@ import { Keys } from './Keys'
 import { Door } from './Door'
 import { Monster } from './Monster'
 import { Player } from './Player'
+import { Furniture, CreakyFloors } from './Furniture'
+import { Wardrobes } from './Wardrobes'
 import { useGameStore } from '@/lib/game-store'
 
 function SceneSetup() {
@@ -73,6 +75,9 @@ export function GameCanvas() {
       <SceneSetup />
       <Suspense fallback={null}>
         <Environment />
+        <CreakyFloors />
+        <Furniture />
+        <Wardrobes />
         <Lights />
         <Keys />
         <Door />

@@ -118,3 +118,43 @@ Stage Summary:
 - Monster AI with flashlight-repel mechanic, jump scares, sanity/battery systems
 - Verified working via Agent Browser + VLM analysis
 - Artifacts: src/lib/{maze,game-store,audio,input,entities}.ts, src/components/game/{Environment,Lights,Keys,Door,Monster,Player,GameCanvas,HorrorGame,GameErrorBoundary}.tsx, src/components/horror-ui/{HUD,TouchControls,JumpScareOverlay,Screens}.tsx
+
+---
+Task ID: G1-G9 (Granny overhaul + GitHub Pages)
+Agent: Main Game Developer
+Task: Make the game Granny-like (stealth/hiding/hearing), add continuous music + more SFX, deploy to GitHub Pages
+
+Work Log:
+- maze.ts: added FURNITURE (beds/tables/sofas/shelves/chairs/crates), WARDROBE_CELLS (6 hiding spots), CREAKY_CELLS (8 loud floorboards), PATROL_WAYPOINTS (10), isCreakyAt, nearestWardrobe, isFurnitureBlocked, isBlocked (walls+furniture), hasLineOfSight
+- game-store.ts: added day/maxDays (5 nights), noiseLevel, hidden, hiddenWardrobe, crouching, aiState; advanceDay(); 'daytransition' phase
+- entities.ts: added monster AI state machine (patrol/investigate/chase/search/stunned), target/lastSeen/stunTimer, emitNoise()
+- audio.ts: REWROTE — continuous evolving MUSIC (Am-F-C-G chord progression on detuned pad + sub bass + arpeggio bells + slow filter LFO), kept ambient drone/noise/heartbeat, added Granny footstep, door creak, floorboard creak, breathing, granny growl, cupboard open/close, glass break, water drip, wind howl, tension sting; ambient scheduler for random drips/wind/breaths
+- Furniture.tsx: meshes for all 6 furniture types + CreakyFloors visual markers
+- Wardrobes.tsx: tall wooden wardrobe models (interactive hiding spots)
+- Monster.tsx: REWROTE AI — state machine (patrol waypoints / investigate noise / chase on sight / search last-known / dazed by flashlight), hearing radii per noise level, line-of-sight sight check, gets faster each day, granny footsteps + growls inline, tattered skirt
+- Player.tsx: noise system (sprint=2/walk=1/crouch=0/creaky=3 with one-shot emitNoise), hide-in-wardrobe mechanic (E to enter/exit, camera snaps inside, slat overlay), crouch (C/Ctrl) lowers eye height + silent, furniture collision via isBlocked, day-transition on catch (jump scare -> day++ if <5 -> daytransition overlay -> reset; else gameover), keys carry over
+- input.ts: added crouch state + C/Ctrl handling + touchCrouch()
+- HUD.tsx: DAY counter with 5 dots, NOISE indicator (SILENT/WALKING/RUNNING!/CREAK!), GRANNY state (WANDERING/INVESTIGATING/HUNTING YOU/SEARCHING/DAZED), HIDDEN badge, slat overlay when hidden
+- Screens.tsx: "She hears everything. 5 nights to escape." subtitle, crouch/hide in controls hint, DayTransitionScreen (DAY X / nights remain), game over shows catch count
+- TouchControls.tsx: added CROUCH toggle + HIDE/EXIT button
+- HorrorGame.tsx: render DayTransitionScreen during daytransition phase, keep canvas mounted behind overlay
+- next.config.ts: output='export', trailingSlash, basePath/assetPrefix from NEXT_PUBLIC_BASE_PATH, images.unoptimized, allowedDevOrigins
+- .github/workflows/deploy.yml: GitHub Actions auto-deploy to Pages (bun install, build with auto basePath from repo name, .nojekyll, upload-pages-artifact, deploy-pages)
+- package.json: simplified build script to 'next build' for static export
+- README.md: full docs (features, controls, local run, GitHub Pages deploy steps, tech stack, structure)
+- public/.nojekyll: bypass Jekyll for _next folder
+
+Verification (Agent Browser + VLM):
+- Menu renders, start works
+- HUD shows: DAY 1/5 (5 dots), SANITY, BATTERY, keys 0/3, NOISE: SILENT, GRANNY: WANDERING ✓
+- 3D scene renders with furniture: VLM confirms "3D first-person view of a dark corridor with visible textured walls, floor, and a chair in the distance" ✓
+- Granny AI activates after grace period and transitions to HUNTING YOU ✓
+- Catch -> jump scare -> DAY 2 "YOU WOKE UP AGAIN / 4 nights remain / Your keys are still with you" ✓ (day transition + key carry-over verified)
+- No console errors ✓
+- Lint passes clean ✓
+
+Stage Summary:
+- Game is now Granny-style: stealth, sound detection, hiding wardrobes, 5-night day system, patrol/investigate/chase/search AI
+- Continuous evolving ambient music + 10+ new SFX (door creak, floorboard, breathing, granny growl/footstep, cupboard, glass, drip, wind, tension sting)
+- Ready for GitHub Pages: static export config + auto-deploy workflow + README with instructions
+- Artifacts: maze.ts, game-store.ts, entities.ts, audio.ts, Furniture.tsx, Wardrobes.tsx, Monster.tsx, Player.tsx, HUD.tsx, Screens.tsx, TouchControls.tsx, HorrorGame.tsx, next.config.ts, .github/workflows/deploy.yml, README.md, public/.nojekyll

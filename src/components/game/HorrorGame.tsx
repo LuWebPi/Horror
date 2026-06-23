@@ -8,7 +8,7 @@ import { GameErrorBoundary } from './GameErrorBoundary'
 import { HUD } from '@/components/horror-ui/HUD'
 import { TouchControls } from '@/components/horror-ui/TouchControls'
 import { JumpScareOverlay } from '@/components/horror-ui/JumpScareOverlay'
-import { MainMenu, GameOverScreen, VictoryScreen } from '@/components/horror-ui/Screens'
+import { MainMenu, GameOverScreen, VictoryScreen, DayTransitionScreen } from '@/components/horror-ui/Screens'
 import { MousePointerClick } from 'lucide-react'
 
 export function HorrorGame() {
@@ -24,11 +24,13 @@ export function HorrorGame() {
   }, [phase])
 
   const playing = phase === 'playing'
+  // Keep the 3D canvas mounted during daytransition so the scene persists behind the overlay
+  const showCanvas = playing || jumpScare || phase === 'daytransition'
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-black select-none">
-      {/* 3D game renders while playing (and briefly during the jump-scare -> gameover transition) */}
-      {(playing || jumpScare) && (
+      {/* 3D game renders while playing, during the jump-scare, and the day transition */}
+      {showCanvas && (
         <>
           <GameErrorBoundary>
             <GameCanvas />
@@ -42,6 +44,7 @@ export function HorrorGame() {
       )}
 
       {phase === 'menu' && <MainMenu />}
+      {phase === 'daytransition' && <DayTransitionScreen />}
       {phase === 'gameover' && !jumpScare && <GameOverScreen />}
       {phase === 'victory' && <VictoryScreen />}
     </div>
